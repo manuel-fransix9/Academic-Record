@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Academic Record</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Academic Record</h1>
+  <div class="cgpa-box">CGPA: <span id="cgpa">&mdash;</span>
+    <div id="cgpaDetail" style="font-size:14px; margin-top:4px"></div>
+  </div>
+
+  <!-- Your matric number (used to find your row in result sheets) -->
+  <div class="card">
+    <h2>Your matric / registration number</h2>
+    <p>Type it exactly as it appears in your school's result sheets. Any format works.</p>
+    <input id="matric" placeholder="e.g. 20/012345/ABC">
+    <button onclick="saveMatric()">Save</button>
+  </div>
+
+  <!-- One upload button for everything -->
+  <div class="card">
+    <h2>Upload a file</h2>
+    <p>Course registration slip, course list or result sheet: PDF, Word (.docx), Excel or CSV.</p>
+    <input type="file" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.jpg,.jpeg,.png,.webp" onchange="handleUpload(event)">
+    <p><label><input type="checkbox" id="manualMode"> Sheet not reading properly? Tick this to choose the rows yourself.</label></p>
+    <div id="uploadPreview"></div>
+  </div>
+
+  <!-- Add a semester by hand -->
+  <div class="card">
+    <h2>Add a semester</h2>
+    <input id="semesterName" placeholder="e.g. 200 Level - First Semester">
+    <button onclick="addSemester()">Add semester</button>
+  </div>
+
+  <!-- Semesters are drawn here by app.js -->
+  <div id="semesters"></div>
+
+  <!-- Settings: grading scale -->
+  <div class="card">
+    <details>
+      <summary><strong>Grading scale</strong> (change this if your school grades differently)</summary>
+      <p id="scaleSummary"></p>
+      <p>Start from: <select id="scalePreset" onchange="choosePreset(this.value)"></select></p>
+      <div id="scaleEditor"></div>
+      <button onclick="addScaleRow()">Add a grade</button>
+      <button onclick="applyScale()">Save grading scale</button>
+    </details>
+  </div>
+
+  <!-- Settings: previous record -->
+  <div class="card">
+    <details>
+      <summary><strong>Previous record</strong> (only if you are joining midway)</summary>
+      <p>If you have results from earlier semesters that you will not add below, enter your totals so far.
+         Result sheets usually show them as "cumulative total credit registered" and "cumulative total value point".
+         Do not also add those same semesters below, or they will be counted twice.</p>
+      <input id="prevUnits" type="number" placeholder="Total credit units so far">
+      <input id="prevPoints" type="number" placeholder="Total value points (if you know it)">
+      <input id="prevCgpa" type="number" step="0.01" placeholder="or your CGPA so far">
+      <p>
+        <button onclick="savePrevious()">Save</button>
+        <button class="danger" onclick="clearPrevious()">Clear</button>
+      </p>
+      <p id="prevSummary"></p>
+    </details>
+  </div>
+
+  <!-- Backup -->
+  <div class="card">
+    <h2>Backup</h2>
+    <button onclick="exportData()">Download backup</button>
+    <input type="file" accept=".json" onchange="importData(event)">
+  </div>
+
+  <p class="footer">Your records are stored only in this browser, on this device. Nothing is uploaded to a server,
+    except when you choose the optional AI reading, which sends that one file to Google using your own free key.
+    Download a backup now and then, because clearing your browser data erases them.</p>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

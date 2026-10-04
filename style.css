@@ -1,0 +1,20 @@
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 12px; background: #f4f6f8; }
+.cgpa-box { background: #1a5fb4; color: white; padding: 16px; border-radius: 8px; font-size: 22px; margin-bottom: 16px; }
+.card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 16px; overflow-x: auto; }
+input, select { padding: 8px; margin: 4px 4px 4px 0; max-width: 100%; box-sizing: border-box; }
+button { padding: 8px 14px; background: #1a5fb4; color: white; border: none; border-radius: 6px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; }
+.gpa { font-weight: bold; }
+.small { width: 60px; }
+.danger { background: #c01c28; padding: 4px 10px; font-size: 13px; }
+summary { cursor: pointer; }
+.footer { color: #555; font-size: 13px; text-align: center; margin: 24px 0; }
+
+/* Phones */
+@media (max-width: 600px) {
+  body { margin: 10px auto; }
+  .cgpa-box { font-size: 20px; }
+  th, td { padding: 4px 3px; font-size: 13px; }
+  .small { width: 52px; }
+}
