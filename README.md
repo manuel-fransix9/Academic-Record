@@ -3,7 +3,7 @@
 A free, privacy-first academic record tracker for university students.
 Upload your course registration slip and your results, and the app tracks your courses, scores, semester GPA and CGPA automatically.
 
-**Live app:** https://manuel-fransix9.github.io/academic-record/
+**Live app:** https://manuel-fransix9.github.io/Academic-Record/
 
 ## What it does
 
