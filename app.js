@@ -1,7 +1,7 @@
 // =====================================================
 // ACADEMIC RECORD - app.js
 // Sections: 1 Grades and GPA | 2 Data and helpers | 3 Screen
-//           4 Editing | 5 Backup | 6 Matric number | 6b Settings
+//           4 Editing | 5 Backup | 5b Backup reminder | 6 Matric number | 6b Settings
 //           7 The upload button | 8 Course slip (PDF)
 //           9 Result sheets | 9b Manual mode | 9c AI reading (last resort)
 //           10 Course lists | 11 Start
@@ -257,6 +257,7 @@ function render() {
   document.getElementById("cgpaDetail").textContent = totals.units > 0
     ? "Total credit units: " + totals.units + "  |  Total value points: " + totals.points
     : "";
+  renderBackupNotice();
 }
 
 
@@ -345,6 +346,9 @@ function exportData() {
   link.href = URL.createObjectURL(blob);
   link.download = "academic-record-backup.json";
   link.click();
+  localStorage.setItem("backupAt", String(Date.now()));
+  localStorage.setItem("backupHash", dataFingerprint());
+  renderBackupNotice();
 }
 
 // Load data back from a backup file
@@ -366,6 +370,66 @@ function importData(event) {
   };
   reader.readAsText(file);
   event.target.value = "";
+}
+
+
+// ---------- 5b. Backup reminder ----------
+
+// A short code that changes whenever your records change (so we know if a backup is out of date)
+function dataFingerprint() {
+  const text = JSON.stringify([semesters, previousRecord]);
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return String(h);
+}
+
+// The reminder text, or "" if no reminder is needed
+function backupNoticeText(now) {
+  const hasData = semesters.length > 0 || previousRecord.units > 0;
+  if (!hasData) return "";
+
+  const at = Number(localStorage.getItem("backupAt")) || 0;
+  const unchanged = localStorage.getItem("backupHash") === dataFingerprint();
+  const days = at ? Math.floor((now - at) / 86400000) : 0;
+  if (at && unchanged) return "";   // nothing new since the last backup
+  if (at && days < 7) return "";    // backed up recently
+
+  const nav = typeof navigator !== "undefined" ? navigator : {};
+  const onIphone = /iPhone|iPad|iPod/.test(nav.userAgent || "") && !nav.standalone;
+
+  let text = at
+    ? "Your last backup was " + days + " days ago and your records have changed since."
+    : "You haven't downloaded a backup yet.";
+  text += " Your records live only in this browser, so a backup protects you if the browser data is cleared.";
+  if (onIphone) {
+    text += " On iPhone, Safari can erase a website's saved data if you don't open it for about a week. " +
+            "Tap the Share button and choose Add to Home Screen to reduce this risk.";
+  }
+  return text;
+}
+
+function renderBackupNotice() {
+  let box = document.getElementById("backupNotice");
+  if (!box) {                                  // create the box under the CGPA banner
+    box = document.createElement("div");
+    box.id = "backupNotice";
+    const anchor = document.getElementById("cgpa").parentElement;
+    anchor.parentNode.insertBefore(box, anchor.nextSibling);
+  }
+  const text = backupNoticeText(Date.now());
+  box.innerHTML = text
+    ? `<div style="background:#fff4e5;border:1px solid #f0c27b;padding:10px 12px;border-radius:8px;margin-bottom:16px">
+         <p style="margin:0 0 8px 0">${esc(text)}</p>
+         <button onclick="exportData()">Download backup now</button>
+       </div>`
+    : "";
+}
+
+// Ask the browser to keep this site's data (it may refuse; that is fine)
+function requestPersistence() {
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  } catch (e) { /* nothing to do */ }
 }
 
 
@@ -1636,4 +1700,5 @@ fillPresetSelect();
 renderScaleEditor();
 renderScaleSummary();
 renderPreviousSummary();
+requestPersistence();
 render();
