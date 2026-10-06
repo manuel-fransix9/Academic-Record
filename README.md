@@ -3,9 +3,7 @@
 A free, privacy-first academic record tracker for university students.
 Upload your course registration slip and your results, and the app tracks your courses, scores, semester GPA and CGPA automatically.
 
-**Live app:** https://YOUR-USERNAME.github.io/academic-record/
-
-> Replace `YOUR-USERNAME` with your GitHub username.
+**Live app:** https://manuel-fransix9.github.io/academic-record/
 
 ## What it does
 
@@ -52,7 +50,7 @@ Plain HTML, CSS and JavaScript, with these free libraries:
 
 ## About this project
 
-Built by [YOUR NAME] to make tracking results simple for students, and to learn how to build and publish a real web app.
+Built by ADINDU EMMANUEL to make tracking results simple for students, and to learn how to build and publish a real web app.
 
 ## Licence
 
