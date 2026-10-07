@@ -1352,30 +1352,51 @@ function toBase64(buffer) {
   return btoa(binary);
 }
 
-// Model names change often, so ask Google what is available and pick the newest plain "flash" model
-function pickModel(models) {
+// Model names change often, so ask Google what is available.
+// Models are ranked best first: newest plain "flash", then older ones, then "flash-lite".
+// Several are kept because one model can be overloaded while another is fine.
+function rankModels(models) {
   const names = (models || [])
     .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent"))
     .map(m => String(m.name).replace(/^models\//, ""));
   const version = n => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [0, 0])[1]);
   const newestFirst = (a, b) => version(b) - version(a);
   const plain = names.filter(n => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort(newestFirst);
-  if (plain.length) return plain[0];
-  const loose = names.filter(n => /flash/.test(n) && !/image|tts|live|audio|embed|thinking|exp|preview/.test(n)).sort(newestFirst);
-  return loose[0] || "";
+  const lite = names.filter(n => /^gemini-\d+(\.\d+)?-flash-lite$/.test(n)).sort(newestFirst);
+  const loose = names.filter(n => /flash/.test(n) && !/image|tts|live|audio|embed|thinking|exp|preview/.test(n) &&
+                                  !plain.includes(n) && !lite.includes(n)).sort(newestFirst);
+  return [...plain, ...lite, ...loose];
 }
 
-async function getAiModel(key) {
-  const saved = localStorage.getItem("aiModel");
-  if (saved) return saved;
-  let model = "";
+function pickModel(models) {
+  return rankModels(models)[0] || "";
+}
+
+async function getAiModels(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem("aiModels") || "null");
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch (e) { /* fetch a fresh list below */ }
+
+  let list = [];
   try {
     const res = await fetch(AI_BASE + "/models?pageSize=200", { headers: { "x-goog-api-key": key } });
-    if (res.ok) model = pickModel((await res.json()).models);
+    if (res.ok) list = rankModels((await res.json()).models);
   } catch (e) { /* use the fallback below */ }
-  model = model || "gemini-2.5-flash";
-  localStorage.setItem("aiModel", model);
-  return model;
+  if (list.length === 0) list = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+  localStorage.setItem("aiModels", JSON.stringify(list));
+  return list;
+}
+
+// Waits between attempts (a setting so tests can run fast)
+let AI_PAUSE_MS = 1500;
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// What Google said, in a few words (never contains your key)
+function aiDetail(body) {
+  let text = String(body || "");
+  try { text = JSON.parse(text).error.message || text; } catch (e) { /* keep the raw text */ }
+  return text.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
 function aiErrorMessage(status, body) {
@@ -1384,38 +1405,65 @@ function aiErrorMessage(status, body) {
   }
   if (status === 400) return "Google could not process this file. It may be too big or the wrong type. Try a smaller or clearer copy.";
   if (status === 429) return "The free limit has been reached for now. Wait a few minutes (or until tomorrow) and try again.";
-  if (status >= 500) return "Google's service is busy right now. Try again in a few minutes.";
+  if (status >= 500) return "Google's service is busy right now. Wait a minute or two and try again.";
   return "Google sent back an error (" + status + "). Try again later.";
 }
 
-// Send the file and instructions to Gemini and return its text answer
-async function askGemini(key, parts, retried) {
-  const model = await getAiModel(key);
-  let res;
-  try {
-    res = await fetch(AI_BASE + "/models/" + model + ":generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: parts }],
-        generationConfig: { temperature: 0, responseMimeType: "application/json" }
-      })
-    });
-  } catch (e) {
-    throw new Error("I couldn't reach Google. Check your internet connection and try again.");
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    if (res.status === 404 && !retried) {          // the saved model was retired: pick again
-      localStorage.removeItem("aiModel");
-      return askGemini(key, parts, true);
+// Errors where trying another model, or trying again, can help
+const AI_RETRYABLE = [404, 429, 500, 502, 503, 504];
+
+// Send the file and instructions to Gemini and return its text answer.
+// If one model is overloaded or unavailable, the next one is tried.
+async function askGemini(key, parts, refreshed) {
+  const models = (await getAiModels(key)).slice(0, 4);
+  let last = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    let res;
+    try {
+      res = await fetch(AI_BASE + "/models/" + model + ":generateContent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ parts: parts }],
+          generationConfig: { temperature: 0, responseMimeType: "application/json" }
+        })
+      });
+    } catch (e) {
+      throw new Error("I couldn't reach Google. Check your internet connection and try again.");
     }
-    throw new Error(aiErrorMessage(res.status, body));
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = ((((data.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("");
+      if (text.trim()) {
+        if (i > 0) {                                   // remember the model that worked
+          const all = await getAiModels(key);
+          localStorage.setItem("aiModels", JSON.stringify([model, ...all.filter(m => m !== model)]));
+        }
+        return text;
+      }
+      last = { status: 200, body: "empty answer", model: model };
+    } else {
+      const body = await res.text().catch(() => "");
+      last = { status: res.status, body: body, model: model };
+      if (!AI_RETRYABLE.includes(res.status)) throw new Error(aiErrorMessage(res.status, body));
+    }
+    if (i < models.length - 1) await pause(AI_PAUSE_MS);
   }
-  const data = await res.json();
-  const text = ((((data.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("");
-  if (!text.trim()) throw new Error("The AI sent back an empty answer. Try again, or use a clearer copy of the file.");
-  return text;
+
+  // Every model failed. If they were all "not found", the saved list is old: get a fresh one once.
+  if (last.status === 404 && !refreshed) {
+    localStorage.removeItem("aiModels");
+    return askGemini(key, parts, true);
+  }
+  if (last.status === 200) {
+    throw new Error("The AI sent back an empty answer. Try again, or use a clearer copy of the file.");
+  }
+  throw new Error(aiErrorMessage(last.status, last.body) +
+    " (I tried " + models.length + " model" + (models.length === 1 ? "" : "s") +
+    ". Last answer: " + last.status + " from " + last.model + ": " + aiDetail(last.body) + ")");
 }
 
 // The AI is asked for JSON only, but strip ``` fences if it adds them
@@ -1537,7 +1585,7 @@ function saveAiKey() {
 
 function removeAiKey() {
   localStorage.removeItem("aiKey");
-  localStorage.removeItem("aiModel");
+  localStorage.removeItem("aiModels");
   startAi();
 }
 
