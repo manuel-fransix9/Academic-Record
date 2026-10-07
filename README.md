@@ -3,9 +3,7 @@
 A free, privacy-first academic record tracker for university students.
 Upload your course registration slip and your results, and the app tracks your courses, scores, semester GPA and CGPA automatically.
 
-**Live app:** https://YOUR-USERNAME.github.io/academic-record/
-
-> Replace `YOUR-USERNAME` with your GitHub username.
+**Live app:** https://manuel-fransix9.github.io/Academic-Record/
 
 | Desktop | Dark mode | Phone |
 |---|---|---|
@@ -59,12 +57,13 @@ Plain HTML, CSS and JavaScript, with these free libraries:
 
 ## How I built it
 
-I wanted a tool that turns the documents my university gives me into my GPA and CGPA without retyping everything. I built it step by step, testing each piece on real course slips and result sheets before moving on. [Edit this paragraph to say, in your own words, how you worked and what you learned. If you used an AI assistant as a tutor and pair-programmer, saying so is honest and shows you can build with modern tools.]
+I wanted a tool that turns the documents my university gives me into my GPA and CGPA without retyping everything. I built it step by step, testing each piece on real course slips and result sheets before moving on.
+I've always liked building stuff, and generally just making repeated processes automated and overall easier so it came as little surprise to me that such came across my mind. I leveraged AI in the process and kept on logging, testing and taking notes of problems as well as possible problems users could possibly face and solving those problems as well as possible problems. 
 
 Decisions and problems along the way:
 
 - **Privacy first.** Everything runs in the browser, so no student data ever reaches a server.
-- **Matching courses across files.** The same course appears as `ANA201P` on a slip and `ANA 201` on a result sheet, and sometimes with different codes entirely. The app matches by a normalised code first, then by similar titles.
+- **Matching courses across files.** The same course appears as `ABC 201P` on a slip and `ABC 201` on a result sheet, and sometimes with different codes entirely. The app matches by a normalised code first, then by similar titles.
 - **Trusting the school's numbers.** Result sheets sometimes disagree with registration slips (credit units, which semester a course counts in). The app uses the result sheet's units so that semester GPAs match the school's own figures, and it shows every change in a preview before saving.
 - **Never trusting a guess.** Every automatic or AI reading goes through a preview, and every failure has a manual fallback.
 - **Not assuming my school.** Matric numbers, grading scales, pass marks and degree classes are all settings, not hard-coded.
@@ -82,4 +81,4 @@ Decisions and problems along the way:
 
 MIT. See the `LICENSE` file.
 
-Built by [YOUR NAME].
+Built by Adindu Emmanuel.
