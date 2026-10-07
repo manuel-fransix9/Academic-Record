@@ -1,20 +1,85 @@
-body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 12px; background: #f4f6f8; }
-.cgpa-box { background: #1a5fb4; color: white; padding: 16px; border-radius: 8px; font-size: 22px; margin-bottom: 16px; }
-.card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 16px; overflow-x: auto; }
-input, select { padding: 8px; margin: 4px 4px 4px 0; max-width: 100%; box-sizing: border-box; }
-button { padding: 8px 14px; background: #1a5fb4; color: white; border: none; border-radius: 6px; cursor: pointer; }
+/* ---------- Colours (light and dark) ---------- */
+:root {
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --text: #1d1d1f;
+  --muted: #555555;
+  --border: #dddddd;
+  --head-bg: #eeeeee;
+  --input-bg: #ffffff;
+  --input-border: #bbbbbb;
+  --notice-bg: #fff4e5;
+  --notice-border: #f0c27b;
+  --accent: #1a5fb4;
+  --danger: #c01c28;
+  --link: #1a5fb4;
+}
+[data-theme="dark"] {
+  --bg: #12161c;
+  --card: #1b222c;
+  --text: #e8eaed;
+  --muted: #aab2bd;
+  --border: #34404f;
+  --head-bg: #263140;
+  --input-bg: #121820;
+  --input-border: #4a5a6e;
+  --notice-bg: #3a2f1a;
+  --notice-border: #8a6a2b;
+  --accent: #3b82d6;
+  --danger: #d6454f;
+  --link: #7ab6ff;
+}
+
+/* ---------- Page ---------- */
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 12px; background: var(--bg); color: var(--text); }
+a { color: var(--link); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cgpa-box { background: var(--accent); color: white; padding: 16px; border-radius: 8px; font-size: 22px; margin-bottom: 16px; }
+.card { background: var(--card); padding: 16px; border-radius: 8px; margin-bottom: 16px; overflow-x: auto; }
+input, select { padding: 8px; margin: 4px 4px 4px 0; max-width: 100%; box-sizing: border-box;
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px; }
+button { padding: 8px 14px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; }
 table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-th, td { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; }
+th, td { border-bottom: 1px solid var(--border); padding: 6px; text-align: left; }
 .gpa { font-weight: bold; }
 .small { width: 60px; }
-.danger { background: #c01c28; padding: 4px 10px; font-size: 13px; }
+.danger { background: var(--danger); padding: 4px 10px; font-size: 13px; }
 summary { cursor: pointer; }
-.footer { color: #555; font-size: 13px; text-align: center; margin: 24px 0; }
+.footer { color: var(--muted); font-size: 13px; text-align: center; margin: 24px 0; }
+
+/* Reminder box and the manual-mode grid */
+.notice { background: var(--notice-bg); border: 1px solid var(--notice-border); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+.notice p { margin: 0 0 8px 0; }
+.grid-cell { border: 1px solid var(--border); padding: 2px 5px; white-space: nowrap; }
+.grid-rownum { background: var(--head-bg); padding: 2px 6px; }
 
 /* Phones */
 @media (max-width: 600px) {
-  body { margin: 10px auto; }
+  body { margin: 10px auto; padding: 0 8px; }
+  h1 { font-size: 24px; }
+  h2 { font-size: 18px; }
   .cgpa-box { font-size: 20px; }
-  th, td { padding: 4px 3px; font-size: 13px; }
-  .small { width: 52px; }
+  .card { padding: 10px; }
+  th, td { padding: 3px 2px; font-size: 12px; }
+  td input { padding: 4px; margin: 0; font-size: 12px; }
+  .small { width: 38px; }
+  td .danger { padding: 2px 6px; font-size: 11px; }
+  #cgpaDetail { font-size: 12px !important; }
+}
+
+/* ---------- Printing / saving as PDF ---------- */
+.print-only { display: none; }
+@media print {
+  :root, [data-theme="dark"] {
+    --bg: #ffffff; --card: #ffffff; --text: #000000; --muted: #333333;
+    --border: #999999; --head-bg: #eeeeee; --accent: #000000; --link: #000000;
+  }
+  body { margin: 0; max-width: none; background: #fff; color: #000; font-size: 12px; }
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+  .card { border: 1px solid #bbb; border-radius: 0; page-break-inside: avoid; overflow: visible; padding: 10px; }
+  .cgpa-box { background: #fff; color: #000; border: 2px solid #000; border-radius: 0; font-size: 18px; }
+  input, select { border: none !important; background: none !important; padding: 0 !important; margin: 0 !important; color: #000 !important; }
+  tr { page-break-inside: avoid; }
+  a { color: #000; text-decoration: none; }
 }

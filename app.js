@@ -2,6 +2,7 @@
 // ACADEMIC RECORD - app.js
 // Sections: 1 Grades and GPA | 2 Data and helpers | 3 Screen
 //           4 Editing | 5 Backup | 5b Backup reminder | 6 Matric number | 6b Settings
+//           6c Dark mode, degree class, target calculator, printing
 //           7 The upload button | 8 Course slip (PDF)
 //           9 Result sheets | 9b Manual mode | 9c AI reading (last resort)
 //           10 Course lists | 11 Start
@@ -230,25 +231,27 @@ function render() {
         <td>${exam}</td>
         <td><input class="small" type="number" value="${total}" onchange="updateField(${i}, ${j}, 'score', this.value)"></td>
         <td>${grade}</td>
-        <td><button class="danger" onclick="deleteCourse(${i}, ${j})">\u2715</button></td>
+        <td class="no-print"><button class="danger" onclick="deleteCourse(${i}, ${j})">\u2715</button></td>
       </tr>`;
     });
 
     container.innerHTML += `
       <div class="card">
         <h2>${esc(semester.name)}
-          <button class="danger" onclick="deleteSemester(${i})">Delete semester</button>
+          <span class="no-print"><button class="danger" onclick="deleteSemester(${i})">Delete semester</button></span>
         </h2>
         <table>
-          <tr><th>Code</th><th>Title</th><th>Units</th><th>Test</th><th>Exam</th><th>Total</th><th>Grade</th><th></th></tr>
+          <tr><th>Code</th><th>Title</th><th>Units</th><th>Test</th><th>Exam</th><th>Total</th><th>Grade</th><th class="no-print"></th></tr>
           ${rows}
         </table>
         <p class="gpa">Semester GPA: ${gpaText(semester.courses)}</p>
-        <input id="code-${i}" placeholder="Code (PCH 201)">
-        <input id="title-${i}" placeholder="Title">
-        <input id="units-${i}" type="number" placeholder="Units">
-        <input id="score-${i}" type="number" placeholder="Total score (optional)">
-        <button onclick="addCourse(${i})">Add course</button>
+        <div class="no-print">
+          <input id="code-${i}" placeholder="Code (PCH 201)">
+          <input id="title-${i}" placeholder="Title">
+          <input id="units-${i}" type="number" placeholder="Units">
+          <input id="score-${i}" type="number" placeholder="Total score (optional)">
+          <button onclick="addCourse(${i})">Add course</button>
+        </div>
       </div>`;
   });
 
@@ -257,6 +260,9 @@ function render() {
   document.getElementById("cgpaDetail").textContent = totals.units > 0
     ? "Total credit units: " + totals.units + "  |  Total value points: " + totals.points
     : "";
+  renderDegreeClass();
+  renderPrintHeader();
+  renderTargetHint();
   renderBackupNotice();
 }
 
@@ -311,6 +317,8 @@ function buildBackup() {
     semesters: semesters,
     gradeScale: gradeScale,
     previousRecord: previousRecord,
+    degreeBands: degreeBands,
+    showClass: showClass,
     matric: localStorage.getItem("matric") || ""
   };
 }
@@ -326,6 +334,15 @@ function restoreBackup(data) {
       gradeScale = sortScale(data.gradeScale);
       localStorage.setItem("gradeScale", JSON.stringify(gradeScale));
       scaleDraft = gradeScale.map(g => ({ letter: g.letter, min: g.min, points: g.points }));
+    }
+    if (data.degreeBands && validateBands(data.degreeBands) === "") {
+      degreeBands = sortBands(data.degreeBands);
+      localStorage.setItem("degreeBands", JSON.stringify(degreeBands));
+      bandsDraft = degreeBands.map(b => ({ name: b.name, min: b.min }));
+    }
+    if (typeof data.showClass === "boolean") {
+      showClass = data.showClass;
+      localStorage.setItem("showClass", showClass ? "1" : "0");
     }
     const p = data.previousRecord;
     if (p && p.units >= 0 && p.points >= 0) {
@@ -362,6 +379,7 @@ function importData(event) {
       loadMatric();
       renderScaleEditor();
       renderScaleSummary();
+      renderBandsEditor();
       renderPreviousSummary();
       render();
     } catch (e) {
@@ -418,7 +436,7 @@ function renderBackupNotice() {
   }
   const text = backupNoticeText(Date.now());
   box.innerHTML = text
-    ? `<div style="background:#fff4e5;border:1px solid #f0c27b;padding:10px 12px;border-radius:8px;margin-bottom:16px">
+    ? `<div class="notice no-print">
          <p style="margin:0 0 8px 0">${esc(text)}</p>
          <button onclick="exportData()">Download backup now</button>
        </div>`
@@ -647,6 +665,287 @@ function clearPrevious() {
   document.getElementById("prevCgpa").value = "";
   renderPreviousSummary();
   render();
+}
+
+
+// ---------- 6c. Dark mode, degree class, target calculator, printing ----------
+
+// --- dark mode ---
+
+function applyTheme(theme) {
+  if (document.documentElement) document.documentElement.setAttribute("data-theme", theme);
+  const button = document.getElementById("themeButton");
+  if (button) button.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+}
+
+function initialTheme() {
+  const saved = localStorage.getItem("theme");
+  if (saved === "dark" || saved === "light") return saved;
+  const dark = typeof window !== "undefined" && window.matchMedia &&
+               window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return dark ? "dark" : "light";
+}
+
+function toggleTheme() {
+  const current = document.documentElement && document.documentElement.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  localStorage.setItem("theme", next);
+  applyTheme(next);
+}
+
+// --- degree class ---
+
+// Common starting points. Schools differ, so students can edit them.
+const CLASS_PRESETS = {
+  five: {
+    label: "5-point classes (First Class from 4.50)",
+    bands: [
+      { name: "First Class", min: 4.5 }, { name: "Second Class Upper", min: 3.5 },
+      { name: "Second Class Lower", min: 2.4 }, { name: "Third Class", min: 1.5 }, { name: "Pass", min: 1 }
+    ]
+  },
+  four: {
+    label: "4-point classes (First Class from 3.50)",
+    bands: [
+      { name: "First Class", min: 3.5 }, { name: "Second Class Upper", min: 3 },
+      { name: "Second Class Lower", min: 2 }, { name: "Third Class", min: 1 }
+    ]
+  }
+};
+
+// Returns "" if the classes are fine, otherwise a message saying what is wrong
+function validateBands(arr) {
+  if (!Array.isArray(arr) || arr.length < 1) return "Add at least one class.";
+  const top = Math.max(...gradeScale.map(g => g.points));
+  const names = new Set();
+  const mins = new Set();
+  for (const b of arr) {
+    const name = String(b.name || "").trim();
+    if (name === "") return "Every class needs a name.";
+    if (names.has(name.toLowerCase())) return "The class " + name + " appears twice.";
+    names.add(name.toLowerCase());
+    if (!Number.isFinite(b.min) || b.min < 0 || b.min > top) return "'From CGPA' must be a number from 0 to " + top + " (" + name + ").";
+    if (mins.has(b.min)) return "Two classes start at the same CGPA (" + b.min + ").";
+    mins.add(b.min);
+  }
+  return "";
+}
+
+// Highest first, so the first match is the right class
+function sortBands(arr) {
+  return arr.map(b => ({ name: String(b.name).trim(), min: Number(b.min) })).sort((a, b) => b.min - a.min);
+}
+
+function loadBands() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("degreeBands") || "null");
+    if (Array.isArray(saved) && validateBands(saved) === "") return sortBands(saved);
+  } catch (e) { /* use the default below */ }
+  return sortBands(CLASS_PRESETS.five.bands);
+}
+
+let degreeBands = loadBands();
+let bandsDraft = degreeBands.map(b => ({ name: b.name, min: b.min }));
+let showClass = localStorage.getItem("showClass") === "1";   // off until the student turns it on
+
+// The class for a CGPA, judged on the two decimals the student sees
+function classFor(cgpa) {
+  const rounded = Math.round(cgpa * 100) / 100;
+  const band = degreeBands.find(b => rounded >= b.min);
+  return band ? band.name : "";
+}
+
+function renderDegreeClass() {
+  const el = document.getElementById("degreeClass");
+  if (!el) return;
+  const t = cumulativeTotals(semesters);
+  el.textContent = (!showClass || t.units === 0) ? "" : "\u00B7 " + (classFor(t.points / t.units) || "below the lowest class");
+}
+
+function setShowClass(on) {
+  showClass = !!on;
+  localStorage.setItem("showClass", showClass ? "1" : "0");
+  render();
+}
+
+function renderBandsEditor() {
+  const rows = bandsDraft.map((b, i) => `<tr>
+    <td><input id="bName-${i}" value="${esc(b.name)}"></td>
+    <td><input class="small" type="number" step="0.01" id="bMin-${i}" value="${Number.isFinite(b.min) ? b.min : ""}"></td>
+    <td><button class="danger" onclick="deleteBandRow(${i})">\u2715</button></td>
+  </tr>`).join("");
+  document.getElementById("bandsEditor").innerHTML =
+    `<table><tr><th>Class</th><th>From CGPA</th><th></th></tr>${rows}</table>`;
+  document.getElementById("showClassBox").checked = showClass;
+  const select = document.getElementById("bandsPreset");
+  select.innerHTML = `<option value="">Choose a starting point...</option>` +
+    Object.keys(CLASS_PRESETS).map(k => `<option value="${k}">${esc(CLASS_PRESETS[k].label)}</option>`).join("");
+}
+
+function readBandsDraft() {
+  bandsDraft = bandsDraft.map(function (b, i) {
+    const name = document.getElementById("bName-" + i);
+    const min = document.getElementById("bMin-" + i);
+    if (!name || !min) return b;
+    return { name: name.value.trim(), min: min.value === "" ? NaN : Number(min.value) };
+  });
+}
+
+function chooseBandPreset(key) {
+  if (!key || !CLASS_PRESETS[key]) return;
+  bandsDraft = CLASS_PRESETS[key].bands.map(b => ({ name: b.name, min: b.min }));
+  renderBandsEditor();
+}
+
+function addBandRow() {
+  readBandsDraft();
+  bandsDraft.push({ name: "", min: NaN });
+  renderBandsEditor();
+}
+
+function deleteBandRow(i) {
+  readBandsDraft();
+  bandsDraft.splice(i, 1);
+  renderBandsEditor();
+}
+
+function applyBands() {
+  readBandsDraft();
+  const problem = validateBands(bandsDraft);
+  if (problem) {
+    alert(problem);
+    return;
+  }
+  degreeBands = sortBands(bandsDraft);
+  localStorage.setItem("degreeBands", JSON.stringify(degreeBands));
+  bandsDraft = degreeBands.map(b => ({ name: b.name, min: b.min }));
+  renderBandsEditor();
+  render();
+  alert("Degree classes saved.");
+}
+
+// --- target CGPA calculator ---
+
+// Units for courses still waiting for results (a good guess for "next semester")
+function suggestedUnits() {
+  let units = 0;
+  semesters.forEach(s => s.courses.forEach(c => { if (c.score === null) units += c.units; }));
+  return units;
+}
+
+// What GPA is needed next semester to reach a target CGPA?
+function targetPlan(totals, target, nextUnits, topPoints, lowPoints) {
+  const P = totals.points;
+  const U = totals.units;
+  const required = (target * (U + nextUnits) - P) / nextUnits;
+  const best = (P + nextUnits * topPoints) / (U + nextUnits);
+  const worst = (P + nextUnits * lowPoints) / (U + nextUnits);
+
+  let status = "possible";
+  if (worst >= target) status = "safe";             // even the lowest grades keep you at the target
+  else if (best < target) status = "out of reach";  // even top grades are not enough in one semester
+
+  // Semesters of the same size with top grades needed, when one semester is not enough
+  let semestersNeeded = null;
+  if (status === "out of reach" && target < topPoints) {
+    semestersNeeded = Math.ceil((target * U - P) / (nextUnits * (topPoints - target)));
+  }
+  return { required: required, best: best, worst: worst, status: status, semestersNeeded: semestersNeeded };
+}
+
+// "an A", "an F", "a B"
+function withArticle(letter) {
+  return (/^[AEFHILMNORSX]/i.test(letter) ? "an " : "a ") + letter;
+}
+
+// Say a GPA in grade words, using the student's own scale
+function describeAverage(points) {
+  const levels = [...new Map(gradeScale.map(g => [g.points, g.letter])).entries()].sort((a, b) => a[0] - b[0]);
+  const exact = levels.find(l => Math.abs(l[0] - points) < 0.005);
+  if (exact) return "an average of " + exact[1];
+  const lower = [...levels].reverse().find(l => l[0] < points);
+  const upper = levels.find(l => l[0] > points);
+  if (lower && upper) return "between " + withArticle(lower[1]) + " and " + withArticle(upper[1]) + " average";
+  return "";
+}
+
+function renderTargetHint() {
+  const units = document.getElementById("targetUnits");
+  if (units) {
+    const guess = suggestedUnits();
+    units.placeholder = guess > 0 ? guess + " (units waiting for results)" : "e.g. 24";
+  }
+  const wrap = document.getElementById("targetClassWrap");
+  const select = document.getElementById("targetClass");
+  if (wrap && select) {
+    wrap.style.display = showClass ? "" : "none";
+    const keep = select.value;
+    select.innerHTML = `<option value="">choose a class...</option>` +
+      degreeBands.map(b => `<option value="${b.min}">${esc(b.name)} (${b.min})</option>`).join("");
+    select.value = keep;
+  }
+}
+
+function useTargetClass(value) {
+  if (value !== "") document.getElementById("targetCgpa").value = value;
+}
+
+function calculateTarget() {
+  const out = document.getElementById("targetResult");
+  const totals = cumulativeTotals(semesters);
+  const points = gradeScale.map(g => g.points);
+  const top = Math.max(...points);
+  const low = Math.min(...points);
+
+  const target = Number(document.getElementById("targetCgpa").value);
+  let units = Number(document.getElementById("targetUnits").value);
+  if (!(units > 0)) units = suggestedUnits();
+
+  if (!(target > 0) || target > top) {
+    out.textContent = "Type a target CGPA between 0 and " + top + ".";
+    return;
+  }
+  if (!(units > 0)) {
+    out.textContent = "Type how many credit units you will take next semester.";
+    return;
+  }
+
+  const plan = targetPlan(totals, target, units, top, low);
+  const now = totals.units > 0 ? "Your CGPA now is " + (totals.points / totals.units).toFixed(2) + ". " : "";
+  let text;
+
+  if (plan.status === "safe") {
+    text = "Good news: you are already there. Even with the lowest grades next semester, your CGPA would stay at " +
+           plan.worst.toFixed(2) + ", which is at or above " + target + ".";
+  } else if (plan.status === "out of reach") {
+    text = "It can't be done in one semester of " + units + " units: even top grades in every course would only take you to " +
+           plan.best.toFixed(2) + ".";
+    if (plan.semestersNeeded) {
+      text += " With top grades in every course it would take about " + plan.semestersNeeded + " semesters of this size.";
+    } else {
+      text += " The target is higher than the top grade points can reach.";
+    }
+  } else {
+    const words = describeAverage(plan.required);
+    text = "To reach a CGPA of " + target + ", you need a GPA of at least " + plan.required.toFixed(2) +
+           " next semester (" + units + " units)." + (words ? " On your scale that is " + words + "." : "");
+  }
+  out.textContent = now + text;
+}
+
+// --- printing / saving as PDF ---
+
+function renderPrintHeader() {
+  const el = document.getElementById("printHeader");
+  if (!el) return;
+  const id = localStorage.getItem("matric") || "";
+  el.innerHTML = `<h2>Academic Record: personal summary</h2>
+    <p>${id ? "Matric / ID: " + esc(id) + " &nbsp;|&nbsp; " : ""}Printed: ${esc(new Date().toLocaleDateString())}</p>
+    <p><em>Calculated by the student with the Academic Record app. This is not an official transcript.</em></p>`;
+}
+
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("beforeprint", renderPrintHeader);   // keep the date fresh
 }
 
 
@@ -1235,11 +1534,10 @@ function setMapperSheet(i) {
 function renderMapper() {
   const box = document.getElementById("uploadPreview");
   const sheet = mapper.sheets[mapper.sheetIndex];
-  const cellStyle = "border:1px solid #ddd;padding:2px 5px;white-space:nowrap";
 
   const grid = sheet.rows.slice(0, 15).map(function (row, r) {
-    const cells = row.slice(0, 30).map(c => `<td style="${cellStyle}">${esc(String(c).slice(0, 22))}</td>`).join("");
-    return `<tr><td style="background:#eee;padding:2px 6px"><b>${r + sheet.rowOffset + 1}</b></td>${cells}</tr>`;
+    const cells = row.slice(0, 30).map(c => `<td class="grid-cell">${esc(String(c).slice(0, 22))}</td>`).join("");
+    return `<tr><td class="grid-rownum"><b>${r + sheet.rowOffset + 1}</b></td>${cells}</tr>`;
   }).join("");
 
   const picker = mapper.sheets.length > 1
@@ -1744,8 +2042,10 @@ function confirmCourses() {
 
 // ---------- 11. Start ----------
 loadMatric();
+applyTheme(initialTheme());
 fillPresetSelect();
 renderScaleEditor();
+renderBandsEditor();
 renderScaleSummary();
 renderPreviousSummary();
 requestPersistence();
