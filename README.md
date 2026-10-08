@@ -7,9 +7,18 @@ Upload your course registration slip and your results, and the app tracks your c
 
 | Desktop | Dark mode | Phone |
 |---|---|---|
-| ![Desktop view](docs/screenshot-desktop.png) | ![Dark mode](docs/screenshot-dark.png) | ![Phone view](docs/screenshot-phone.png) |
+| ![Desktop view](screenshot-desktop.png) | ![Dark mode](screenshot-dark.png) | ![Phone view](screenshot-phone.png) |
 
 *Screenshots use invented sample data.*
+
+## Try it in two minutes
+
+No files of your own handy? Use the invented samples in the [`samples`](samples) folder:
+
+1. Open the [live app](https://manuel-fransix9.github.io/Academic-Record/) and save the matric number `20/012345/ABC`.
+2. Upload [`sample-course-list.xlsx`](samples/sample-course-list.xlsx). It creates a semester with five courses.
+3. Upload [`sample-result-sheet.xlsx`](samples/sample-result-sheet.xlsx). The app finds your row among six students and fills in your scores.
+4. You should see a semester GPA and CGPA of **4.25**. Try the target calculator, dark mode and the print view too.
 
 ## What it does
 
@@ -25,7 +34,7 @@ Upload your course registration slip and your results, and the app tracks your c
 - **Never leaves you stuck.** If a file cannot be read automatically, choose the rows yourself, untick columns that are not courses, or type everything in by hand.
 - **Optional AI reading** for scans and photos only, as a last resort, using your own free Google Gemini key (see Privacy).
 
-![Target CGPA calculator](docs/screenshot-calculator.png)
+![Target CGPA calculator](screenshot-calculator.png)
 
 ## Privacy
 
@@ -57,8 +66,7 @@ Plain HTML, CSS and JavaScript, with these free libraries:
 
 ## How I built it
 
-I wanted a tool that turns the documents my university gives me into my GPA and CGPA without retyping everything. I built it step by step, testing each piece on real course slips and result sheets before moving on.
-I've always liked building stuff, and generally just making repeated processes automated and overall easier so it came as little surprise to me that such came across my mind. I leveraged AI in the process and kept on logging, testing and taking notes of problems as well as possible problems users could possibly face and solving those problems as well as possible problems. 
+I have always enjoyed building things and automating repetitive processes, so turning my university documents into an automatic GPA and CGPA tracker came naturally. I built it step by step, using an AI assistant as my guide, and tested each piece on real course slips and result sheets before moving on. Along the way I kept notes on every problem I ran into, and on problems other students might face, and solved them one at a time.
 
 Decisions and problems along the way:
 
@@ -76,6 +84,10 @@ Decisions and problems along the way:
 - Course slips are read best when the PDF or Word file has real text. Scans and photos need the optional AI reading.
 - Always check the preview. Automatic reading and AI reading can make mistakes.
 - Degree class bands differ between schools. Check the defaults against your school's rules.
+
+## Feedback
+
+Found a problem or have an idea? [Open an issue](https://github.com/manuel-fransix9/Academic-Record/issues). If a file would not read properly, describe its layout (without anyone's private details) and say what you expected to see.
 
 ## Licence
 
