@@ -13,11 +13,11 @@ Upload your course registration slip and your results, and the app tracks your c
 
 ## Try it in two minutes
 
-No files of your own handy? Use the invented samples in the [`samples`](samples) folder:
+No files of your own handy? Use the two invented sample files in this repository:
 
 1. Open the [live app](https://manuel-fransix9.github.io/Academic-Record/) and save the matric number `20/012345/ABC`.
-2. Upload [`sample-course-list.xlsx`](samples/sample-course-list.xlsx). It creates a semester with five courses.
-3. Upload [`sample-result-sheet.xlsx`](samples/sample-result-sheet.xlsx). The app finds your row among six students and fills in your scores.
+2. Upload [`sample-course-list.xlsx`](sample-course-list.xlsx). It creates a semester with five courses.
+3. Upload [`sample-result-sheet.xlsx`](sample-result-sheet.xlsx). The app finds your row among six students and fills in your scores.
 4. You should see a semester GPA and CGPA of **4.25**. Try the target calculator, dark mode and the print view too.
 
 ## What it does
