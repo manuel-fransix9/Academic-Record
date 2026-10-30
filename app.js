@@ -213,7 +213,9 @@ function addCourse(i) {
 function render() {
   save();
   const container = document.getElementById("semesters");
-  container.innerHTML = "";
+  container.innerHTML = semesters.length > 1
+    ? `<p class="no-print"><button onclick="foldAll(true)">Fold all</button> <button onclick="foldAll(false)">Open all</button></p>`
+    : "";
 
   semesters.forEach(function (semester, i) {
     let rows = "";
@@ -235,11 +237,19 @@ function render() {
       </tr>`;
     });
 
+    const folded = semester.collapsed === true;
     container.innerHTML += `
-      <div class="card">
-        <h2>${esc(semester.name)}
-          <span class="no-print"><button class="danger" onclick="deleteSemester(${i})">Delete semester</button></span>
+      <div class="card ${folded ? "folded" : ""}">
+        <h2>
+          <button class="no-print fold-btn" onclick="toggleFold(${i})" aria-expanded="${!folded}" title="${folded ? "Open" : "Fold up"}">${folded ? "\u25B6" : "\u25BC"}</button>
+          ${esc(semester.name)}
+          <span class="no-print">
+            <button onclick="renameSemester(${i})">Rename</button>
+            <button class="danger" onclick="deleteSemester(${i})">Delete semester</button>
+          </span>
         </h2>
+        ${folded ? `<p class="gpa no-print">Semester GPA: ${gpaText(semester.courses)} &middot; ${semester.courses.length} courses</p>` : ""}
+        <div class="sem-body">
         <table>
           <tr><th>Code</th><th>Title</th><th>Units</th><th>Test</th><th>Exam</th><th>Total</th><th>Grade</th><th class="no-print"></th></tr>
           ${rows}
@@ -251,6 +261,7 @@ function render() {
           <input id="units-${i}" type="number" placeholder="Units">
           <input id="score-${i}" type="number" placeholder="Total score (optional)">
           <button onclick="addCourse(${i})">Add course</button>
+        </div>
         </div>
       </div>`;
   });
@@ -295,6 +306,42 @@ function deleteCourse(i, j) {
   semesters[i].courses.splice(j, 1);
   render();
 }
+
+// Change a semester's name (works for manual and uploaded semesters alike)
+function renameSemester(i) {
+  const answer = prompt("New name for this semester:", semesters[i].name);
+  if (answer === null) return;            // cancelled
+  const name = answer.trim();
+  if (name === "" || name === semesters[i].name) return;
+  // Uploads match semesters by name, so two semesters must not share one
+  if (semesters.some((s, k) => k !== i && s.name.toLowerCase() === name.toLowerCase())) {
+    alert("You already have a semester called \"" + name + "\".");
+    return;
+  }
+  semesters[i].name = name;
+  render();
+}
+
+// Fold a semester up (or open it again). It is remembered between visits.
+function toggleFold(i) {
+  semesters[i].collapsed = !semesters[i].collapsed;
+  render();
+}
+
+function foldAll(fold) {
+  semesters.forEach(s => { s.collapsed = fold; });
+  render();
+}
+
+// Folded semesters hide their table on screen, but still print in full
+(function addFoldStyle() {
+  const style = document.createElement("style");
+  style.textContent =
+    ".fold-btn { padding: 2px 8px; margin-right: 6px; font-size: 14px; }" +
+    ".card.folded .sem-body { display: none; }" +
+    "@media print { .card.folded .sem-body { display: block; } }";
+  document.head.appendChild(style);
+})();
 
 function deleteSemester(i) {
   if (!confirm("Delete this whole semester and its courses?")) return;
@@ -395,7 +442,7 @@ function importData(event) {
 
 // A short code that changes whenever your records change (so we know if a backup is out of date)
 function dataFingerprint() {
-  const text = JSON.stringify([semesters, previousRecord]);
+  const text = JSON.stringify([semesters.map(s => ({ name: s.name, courses: s.courses })), previousRecord]); // folding is not a data change
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return String(h);
@@ -1001,9 +1048,18 @@ function fixZipFlags(buffer) {
 }
 
 async function handleSpreadsheet(file, box) {
-  let data = await file.arrayBuffer();
-  if (/\.xlsx$/i.test(file.name)) data = fixZipFlags(data);
-  const workbook = XLSX.read(data, { type: "array" });
+  const original = await file.arrayBuffer();
+  let workbook;
+  try {
+    // Repaired copy first (fixes the "Bad compressed size" files), then the untouched file
+    workbook = XLSX.read(/\.xlsx$/i.test(file.name) ? fixZipFlags(original) : original, { type: "array" });
+  } catch (firstError) {
+    try {
+      workbook = XLSX.read(original, { type: "array" });
+    } catch (secondError) {
+      throw new Error("this Excel file is built in an unusual way that I can't open. Open it in Excel, choose Save As, and save it as CSV or PDF, then upload that");
+    }
+  }
   const sheets = workbook.SheetNames.map(function (name) {
     const ws = workbook.Sheets[name];
     return {
