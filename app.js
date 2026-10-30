@@ -982,8 +982,28 @@ async function handleUpload(event) {
   }
 }
 
+// Some Excel files (from school portals and phone exports) mark an uncompressed entry,
+// such as the logo picture, as "size follows after the data" even though the size is already
+// stated up front. SheetJS then reads the next entry's bytes as that size and gives up with
+// "Bad compressed size". This clears that wrong mark so the file reads normally.
+function fixZipFlags(buffer) {
+  const bytes = new Uint8Array(buffer.slice(0));
+  const view = new DataView(bytes.buffer);
+  for (let i = 0; i + 30 < bytes.length; i++) {
+    if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 3 && bytes[i + 3] === 4) {
+      const flags = view.getUint16(i + 6, true);
+      const method = view.getUint16(i + 8, true);
+      const size = view.getUint32(i + 18, true);
+      if ((flags & 8) && method === 0 && size > 0) view.setUint16(i + 6, flags & ~8, true);
+    }
+  }
+  return bytes;
+}
+
 async function handleSpreadsheet(file, box) {
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  let data = await file.arrayBuffer();
+  if (/\.xlsx$/i.test(file.name)) data = fixZipFlags(data);
+  const workbook = XLSX.read(data, { type: "array" });
   const sheets = workbook.SheetNames.map(function (name) {
     const ws = workbook.Sheets[name];
     return {
