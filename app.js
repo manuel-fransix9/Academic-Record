@@ -89,6 +89,8 @@ let semesters = loadSemesters();   // the app's data: semesters, each holding co
 let pendingUpload = null;          // what was found in an uploaded file, waiting for confirmation
 let lastSheets = null;             // the spreadsheet just uploaded (kept for manual mode)
 let mapper = null;                 // manual mode: which sheet is being looked at
+let hideCgpa = false;              // when true, CGPA, degree class and totals show as stars
+try { hideCgpa = localStorage.getItem("hideCgpa") === "1"; } catch (e) {}
 let lastFile = null;               // the file just uploaded (kept so AI reading can use it)
 
 const AI_BUTTON = `<p><button onclick="startAi()">Try AI reading (last resort)</button></p>`;
@@ -267,10 +269,13 @@ function render() {
   });
 
   const totals = cumulativeTotals(semesters);
-  document.getElementById("cgpa").textContent = cgpaText(semesters);
+  document.getElementById("cgpa").textContent = hideCgpa ? "\u2605.\u2605\u2605" : cgpaText(semesters);
   document.getElementById("cgpaDetail").textContent = totals.units > 0
-    ? "Total credit units: " + totals.units + "  |  Total value points: " + totals.points
+    ? (hideCgpa
+        ? "Total credit units: \u2605\u2605  |  Total value points: \u2605\u2605\u2605"
+        : "Total credit units: " + totals.units + "  |  Total value points: " + totals.points)
     : "";
+  renderHideButton();
   renderDegreeClass();
   renderPrintHeader();
   renderTargetHint();
@@ -342,6 +347,28 @@ function foldAll(fold) {
     "@media print { .card.folded .sem-body { display: block; } }";
   document.head.appendChild(style);
 })();
+
+// One button hides the CGPA, degree class and totals together (shown as stars), and brings them back
+function toggleHideCgpa() {
+  hideCgpa = !hideCgpa;
+  try { localStorage.setItem("hideCgpa", hideCgpa ? "1" : "0"); } catch (e) {}
+  render();
+}
+
+function renderHideButton() {
+  const box = document.querySelector(".cgpa-box");
+  if (!box) return;
+  let btn = document.getElementById("hideCgpaButton");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "hideCgpaButton";
+    btn.className = "no-print";
+    btn.style.cssText = "float:right; background:rgba(255,255,255,0.25); font-size:13px; padding:4px 10px";
+    btn.onclick = toggleHideCgpa;
+    box.insertBefore(btn, box.firstChild);
+  }
+  btn.textContent = hideCgpa ? "Show" : "Hide";
+}
 
 function deleteSemester(i) {
   if (!confirm("Delete this whole semester and its courses?")) return;
@@ -806,7 +833,9 @@ function renderDegreeClass() {
   const el = document.getElementById("degreeClass");
   if (!el) return;
   const t = cumulativeTotals(semesters);
-  el.textContent = (!showClass || t.units === 0) ? "" : "\u00B7 " + (classFor(t.points / t.units) || "below the lowest class");
+  el.textContent = (!showClass || t.units === 0) ? ""
+    : hideCgpa ? "\u00B7 \u2605\u2605\u2605\u2605\u2605\u2605"
+    : "\u00B7 " + (classFor(t.points / t.units) || "below the lowest class");
 }
 
 function setShowClass(on) {
